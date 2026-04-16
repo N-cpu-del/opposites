@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ADJECTIVE OPPOSITES: SOLO MATCH</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --accent: #f59e0b;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --bg: #0f172a;
+        }
+
+        body, html {
+            margin: 0; padding: 0;
+            height: 100%; width: 100%;
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        header {
+            padding: 20px;
+            text-align: center;
+        }
+
+        h1 { margin: 0; color: var(--accent); font-size: 2.5rem; }
+        p { color: #94a3b8; margin: 5px 0; font-size: 1.2rem; }
+
+        #game-container {
+            flex: 1;
+            width: 90%;
+            max-width: 1100px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 15px;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .word-card {
+            background: white;
+            color: #1e293b;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            font-weight: 800;
+            font-size: 1.3rem;
+            text-transform: uppercase;
+            cursor: grab;
+            box-shadow: 0 8px 15px rgba(0,0,0,0.3);
+            transition: all 0.2s ease;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 60px;
+            border: 3px solid transparent;
+        }
+
+        .word-card:active { cursor: grabbing; transform: scale(1.05); }
+
+        .word-card.drag-over {
+            border-color: var(--primary);
+            background: #eef2ff;
+            transform: scale(1.05);
+        }
+
+        .matched {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.2) rotate(20deg);
+        }
+
+        #stats {
+            padding: 10px;
+            font-size: 1.6rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        #win-modal {
+            position: fixed; inset: 0; background: rgba(15, 23, 42, 0.98);
+            display: none; flex-direction: column; justify-content: center;
+            align-items: center; z-index: 100;
+        }
+
+        .shake { animation: shake 0.4s; border-color: var(--danger) !important; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .btn {
+            padding: 15px 40px; background: var(--primary); color: white;
+            border: none; border-radius: 10px; font-size: 1.5rem; font-weight: bold;
+            cursor: pointer; margin-top: 20px; box-shadow: 0 10px 20px rgba(99, 102, 241, 0.4);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>OPPOSITE MATCH</h1>
+        <p>Drag an adjective onto its opposite to clear the board!</p>
+        <div id="stats">Pairs Left: <span id="count">0</span></div>
+    </header>
+
+    <div id="game-container"></div>
+
+    <div id="win-modal">
+        <h1 style="font-size: 5rem; color: var(--success); margin: 0;">🎉 WELL DONE!</h1>
+        <p style="font-size: 1.8rem;">You found all the adjective pairs.</p>
+        <button class="btn" onclick="location.reload()">PLAY AGAIN</button>
+    </div>
+
+<script>
+    // Direct Pairings
+    const pairs = {
+        "ugly": "lovely",
+        "lovely": "ugly",
+        "dirty": "clean",
+        "clean": "dirty",
+        "expensive": "cheap",
+        "cheap": "expensive",
+        "noisy": "quiet",
+        "quiet": "noisy",
+        "modern": "old",
+        "old": "modern",
+        "dangerous": "safe",
+        "safe": "dangerous",
+        "crowded": "peaceful", // Updated per request
+        "peaceful": "crowded", // Updated per request
+        "wonderful": "awful",
+        "awful": "wonderful",
+        "bright": "dark",
+        "dark": "bright",
+        "unique": "ordinary",
+        "ordinary": "unique"
+    };
+
+    let words = Object.keys(pairs);
+    let totalPairs = words.length / 2;
+    let pairsLeft = totalPairs;
+
+    function initGame() {
+        const container = document.getElementById('game-container');
+        document.getElementById('count').innerText = pairsLeft;
+
+        // Shuffle
+        words.sort(() => Math.random() - 0.5);
+
+        words.forEach(word => {
+            const card = document.createElement('div');
+            card.className = 'word-card';
+            card.innerText = word;
+            card.draggable = true;
+            card.id = "word-" + word;
+
+            card.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData("text", word);
+                card.style.opacity = "0.4";
+            });
+
+            card.addEventListener('dragend', () => {
+                card.style.opacity = "1";
+            });
+
+            card.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                card.classList.add('drag-over');
+            });
+
+            card.addEventListener('dragleave', () => {
+                card.classList.remove('drag-over');
+            });
+
+            card.addEventListener('drop', (e) => {
+                e.preventDefault();
+                card.classList.remove('drag-over');
+                const draggedWord = e.dataTransfer.getData("text");
+                
+                if (pairs[draggedWord] === word) {
+                    handleMatch(draggedWord, word);
+                } else if (draggedWord !== word) {
+                    card.classList.add('shake');
+                    setTimeout(() => card.classList.remove('shake'), 400);
+                }
+            });
+
+            container.appendChild(card);
+        });
+    }
+
+    function handleMatch(w1, w2) {
+        const card1 = document.getElementById("word-" + w1);
+        const card2 = document.getElementById("word-" + w2);
+        
+        card1.classList.add('matched');
+        card2.classList.add('matched');
+
+        pairsLeft--;
+        document.getElementById('count').innerText = pairsLeft;
+
+        if (pairsLeft === 0) {
+            setTimeout(() => {
+                document.getElementById('win-modal').style.display = 'flex';
+            }, 800);
+        }
+    }
+
+    initGame();
+</script>
+</body>
+</html>
